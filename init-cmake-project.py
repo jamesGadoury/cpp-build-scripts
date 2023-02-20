@@ -4,9 +4,6 @@ import jinja2
 
 env = jinja2.Environment()
 
-TXT = "HELLO\n" \
-      "I am blah."
-
 base_cmakelist_template = env.from_string(
     "cmake_minimum_required(VERSION 3.12)\n"
     "project({{project}})\n"
@@ -14,6 +11,19 @@ base_cmakelist_template = env.from_string(
     "set(CMAKE_EXPORT_COMPILE_COMMANDS ON)\n"
 )
 
+base_cmakelist_exe_modifier_template = env.from_string(
+    "add_subdirectory({{exe}})\n"
+)
+
+exe_cmakelist_template = env.from_string(
+    "add_executable({{exe}} main.cpp)\n"
+)
+
+exe_main_cpp = "#include <iostream>\n\n" \
+               "using namespace std;\n\n" \
+               "int main() {\n" \
+               "    cout << \"hello world\" << endl;\n" \
+               "}\n"
 
 def main(args):
     destination = Path(args.destination)
@@ -25,8 +35,23 @@ def main(args):
 
     destination.mkdir(parents=True)
 
-    with open(destination / "CMakeLists.txt", "w") as f:
+    base_cmakelist = destination / "CMakeLists.txt"
+
+    with open(base_cmakelist, "w") as f:
         f.write(base_cmakelist_template.render(project=project))
+
+    exe = args.exe if args.exe else "src"
+    exe_dir = destination / exe
+    exe_dir.mkdir(parents=True)
+
+    with open(base_cmakelist, "a") as f:
+        f.write(base_cmakelist_exe_modifier_template.render(exe=exe))
+
+    with open(exe_dir / "CMakeLists.txt", "w") as f:
+        f.write(exe_cmakelist_template.render(exe=exe))
+    
+    with open(exe_dir / "main.cpp", "w") as f:
+        f.write(exe_main_cpp)
 
 
 if __name__ == "__main__":
@@ -34,6 +59,6 @@ if __name__ == "__main__":
     parser.add_argument("destination")
     parser.add_argument("--project", help="if provided, will be used as project name, otherwise destination is used.")
     parser.add_argument("--library", help="if provided, it will initialize a library subfolder.")
-    parser.add_argument("--executable", help="if provided, it will initialize an executable subfolder.")
+    parser.add_argument("--exe", help="if provided, it will initialize an executable subfolder.")
 
     main(parser.parse_args())
